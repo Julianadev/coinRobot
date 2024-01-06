@@ -26,6 +26,39 @@ def cotacao_moeda(navegador, moeda):
         logging.exception('Mensagem de erro: ', e)
         return None
 
+def salvar_arquivo_txt(data_hora, retornandoDolar, retornandoEuro):
+    nome_arquivo = input('Digite um nome para o arquivo: ')
+    if nome_arquivo.lower():
+        if not nome_arquivo.endswith('txt'):
+            nome_arquivo += '.txt'
+        modo = 'a' if os.path.exists(nome_arquivo) else 'w'
+        with open(nome_arquivo, modo, encoding='UTF-8') as arquivo:
+            arquivo.write(f'{data_hora} | Dólar: {retornandoDolar}  Euro: {retornandoEuro}\n')
+            print(f'Arquivo {nome_arquivo} salvo com sucesso!')
+    else:
+        print('Nome do arquivo não pode ser vazio')
+
+def salvar_arquivo_xlsx(caminho_arquivo, data_hora, retornandoDolar, retornandoEuro):
+    try:
+        if caminho_arquivo.lower().endswith(('.xls', '.xlsx', '.csv')):
+            caminho_arquivo = os.path.abspath(caminho_arquivo)
+            df = pd.DataFrame(columns=['HORA/DATA', 'MOEDA', 'VALOR'])
+
+            df_leitura = pd.read_excel(caminho_arquivo)
+
+            df.loc[len(df.index)] = data_hora, 'Dólar', retornandoDolar
+            df.loc[len(df.index)] = data_hora, 'Euro', retornandoEuro
+
+            df.to_excel(caminho_arquivo, index=False)
+
+            print(f'Arquivo salvo com sucesso em {caminho_arquivo}')
+            os.startfile(caminho_arquivo)
+        else:
+            print('Extensão de arquivo inválida. Encerrando o programa...')
+    except FileNotFoundError as e:
+        print(f'Caminho inválido: {e}')
+
+
 options = controle.EdgeOptions()
 options.add_argument('--headless=new')
 navegador = controle.Edge(options=options)
@@ -39,57 +72,35 @@ navegador.close()
 print(f'Dólar: {retornandoDolar}')
 print(f'Euro: {retornandoEuro}')
 
-try:
-    salvar_arquivo = input('Deseja salvar o arquivo? S/N ')
-    opcoes = {'1': 'TXT', '2': 'XLSX'}
-    escolha_usuario = input('Qual formato de arquivo você deseja salvar?\n[1] - .txt\n[2] - .xlsx\n ')
-except Exception as e:
-    print('Ocorreu um erro: ', e)
+def main():
+    try:
+        salvar_arquivo = input('Deseja salvar o arquivo? S/N ')
+        opcoes = {'1': 'TXT', '2': 'XLSX'}
+        escolha_usuario = input('Qual formato de arquivo você deseja salvar?\n[1] - .txt\n[2] - .xlsx\n ').lower()
+    except Exception as e:
+        print('Ocorreu um erro: ', e)
+        return
 
-if escolha_usuario in opcoes:
-    if salvar_arquivo.upper() == 'S':
-        if escolha_usuario == '1':
-            nome_arquivo = input('Digite um nome para o arquivo: ')
-            if nome_arquivo:
+    if escolha_usuario in opcoes:
+        if salvar_arquivo.upper() == 'S':
+            if escolha_usuario == '1':
                 hora_atual = datetime.now()
                 data_hora = hora_atual.strftime('%d/%m/%Y %H:%M:%S')
-                if not nome_arquivo.endswith('txt'):
-                    nome_arquivo += '.txt'
-                if os.path.exists(nome_arquivo):
-                    modo = 'a'
-                else:
-                    modo = 'w'
-                with open(nome_arquivo, modo, encoding='UTF-8') as arquivo:
-                    arquivo.write(f'{data_hora} | Dólar: {retornandoDolar}  Euro: {retornandoEuro}\n')
-                    print(f'Arquivo {nome_arquivo} salvo com sucesso!')
-            else:
-                print('Nome do arquivo não pode ser vazio')
-        elif escolha_usuario == '2':
-            try:
+                salvar_arquivo_txt(data_hora, retornandoDolar, retornandoEuro)
+            elif escolha_usuario == '2':
                 caminho_arquivo = input('Digite o caminho do arquivo: ').strip('"')
-                if caminho_arquivo.lower().endswith(('.xls', '.xlsx', '.csv')):
-                    caminho_arquivo = os.path.abspath(caminho_arquivo)
-                    df = pd.DataFrame(columns=['HORA/DATA', 'MOEDA', 'VALOR'])
-
-                    hora_atual = datetime.now()
-                    data_hora = hora_atual.strftime('%d/%m/%Y %H:%M:%S')
-
-                    df_leitura = pd.read_excel(caminho_arquivo)
-
-                    df.loc[len(df.index)] = data_hora, 'Dólar', retornandoDolar
-                    df.loc[len(df.index)] = data_hora, 'Euro', retornandoEuro
-
-                    df.to_excel(caminho_arquivo, index=False)
-
-                    os.startfile(caminho_arquivo)
-            except FileNotFoundError as e:
-                print(f'Caminho inválido: {e}')
+                hora_atual = datetime.now()
+                data_hora = hora_atual.strftime('%d/%m/%Y %H:%M:%S')
+                salvar_arquivo_xlsx(caminho_arquivo, data_hora, retornandoDolar, retornandoEuro )
+            else:
+                print('Opção inválida. Escolha 1(.TXT) ou 2(.XLSX)')
         else:
-            print('Opção inválida. Escolha 1(.TXT) ou 2(.XLSX)')
+            print('Encerrando o programa...')
     else:
-        print('Encerrando o programa...')
-else:
-    print('Opção inválida.')
+        print('Opção inválida.')
+
+if __name__ == "__main__":
+    main()
 
 
 
