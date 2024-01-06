@@ -1,27 +1,35 @@
 from selenium import webdriver as controle
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-import pyautogui as controleTempo
+import pandas as pd
 from datetime import datetime
 import os
-import xlsxwriter
+import traceback
+import logging
 
 
 xpath_moeda = '//*[@id="knowledge-currency__updatable-data-column"]/div[1]/div[2]/span[1]'
 def cotacao_moeda(navegador, moeda):
     navegador.get('https://google.com.br')
-    controleTempo.sleep(3)
-    navegador.find_element(By.NAME, 'q').send_keys(f'{moeda} hoje')
-    controleTempo.sleep(3)
-    navegador.find_element(By.NAME, 'q').send_keys(Keys.RETURN)
-    controleTempo.sleep(3)
-    contacao = navegador.find_elements(By.XPATH, xpath_moeda)[0].text
-    controleTempo.sleep(3)
-    return contacao
 
-controleTempo.sleep(3)
+    try:
+        WebDriverWait(navegador, 10).until(EC.visibility_of_element_located((By.NAME, 'q')))
+        navegador.find_element(By.NAME, 'q').send_keys(f'{moeda} hoje')
+        navegador.find_element(By.NAME, 'q').send_keys(Keys.RETURN)
+        WebDriverWait(navegador, 10).until(EC.visibility_of_element_located((By.NAME, 'q')))
+        cotacao = navegador.find_elements(By.XPATH, xpath_moeda)[0].text
+        return cotacao
+    except Exception as e:
+        traceback.print_exc()
+        logging.exception('Mensagem de erro: ', e)
+        return None
 
-navegador = controle.Edge()
+options = controle.EdgeOptions()
+options.add_argument('--headless=new')
+navegador = controle.Edge(options=options)
+print('Coletando os dados...Aguarde')
 
 retornandoDolar = cotacao_moeda(navegador, 'dolar')
 retornandoEuro = cotacao_moeda(navegador, 'Euro')
@@ -33,12 +41,10 @@ print(f'Euro: {retornandoEuro}')
 
 try:
     salvar_arquivo = input('Deseja salvar o arquivo? S/N ')
-except ValueError as e:
+    opcoes = {'1': 'TXT', '2': 'XLSX'}
+    escolha_usuario = input('Qual formato de arquivo você deseja salvar?\n[1] - .txt\n[2] - .xlsx\n ')
+except Exception as e:
     print('Ocorreu um erro: ', e)
-
-opcoes = {'1': 'TXT', '2': 'XLSX'}
-
-escolha_usuario = input('Qual formato de arquivo você deseja salvar?\n[1] - .txt\n[2] - .xlsx ')
 
 if escolha_usuario in opcoes:
     if salvar_arquivo.upper() == 'S':
@@ -54,36 +60,36 @@ if escolha_usuario in opcoes:
                 else:
                     modo = 'w'
                 with open(nome_arquivo, modo, encoding='UTF-8') as arquivo:
-                    arquivo.write(f'{hora_atual} | Dólar: {retornandoDolar}  Euro: {retornandoEuro}')
-                    print(f'Arquivo {nome_arquivo}.txt salvo com sucesso!')
+                    arquivo.write(f'{data_hora} | Dólar: {retornandoDolar}  Euro: {retornandoEuro}\n')
+                    print(f'Arquivo {nome_arquivo} salvo com sucesso!')
             else:
                 print('Nome do arquivo não pode ser vazio')
         elif escolha_usuario == '2':
-            caminho_arquivo = "C:\\Users\\jully\\OneDrive\\Área de Trabalho\\Extracao_dolar_euro_excel.xlsx"
-            criando_planilha = xlsxwriter.Workbook(caminho_arquivo)
-            planilha = criando_planilha.add_worksheet()
+            try:
+                caminho_arquivo = input('Digite o caminho do arquivo: ').strip('"')
+                if caminho_arquivo.lower().endswith(('.xls', '.xlsx', '.csv')):
+                    caminho_arquivo = os.path.abspath(caminho_arquivo)
+                    df = pd.DataFrame(columns=['HORA/DATA', 'MOEDA', 'VALOR'])
 
-            planilha.write('A1', 'DATA/HORA')
-            planilha.write('B1', 'Moeda')
-            planilha.write('C1', 'Valor')
+                    hora_atual = datetime.now()
+                    data_hora = hora_atual.strftime('%d/%m/%Y %H:%M:%S')
 
-            hora_atual = datetime.now()
-            data_hora = hora_atual.strftime('%d/%m/%Y %H:%M:%S')
+                    df_leitura = pd.read_excel(caminho_arquivo)
 
-            planilha.write('A2', data_hora)
-            planilha.write('B2', 'Dálar')
-            planilha.write('C2', retornandoDolar)
+                    df.loc[len(df.index)] = data_hora, 'Dólar', retornandoDolar
+                    df.loc[len(df.index)] = data_hora, 'Euro', retornandoEuro
 
-            planilha.write('A3', data_hora)
-            planilha.write('B3', 'Euro')
-            planilha.write('C3', retornandoEuro)
+                    df.to_excel(caminho_arquivo, index=False)
 
-            criando_planilha.close()
-
-            print(f'Arquivo salvo com sucesso em {caminho_arquivo}')
-            os.startfile(caminho_arquivo)
-
+                    os.startfile(caminho_arquivo)
+            except FileNotFoundError as e:
+                print(f'Caminho inválido: {e}')
+        else:
+            print('Opção inválida. Escolha 1(.TXT) ou 2(.XLSX)')
     else:
         print('Encerrando o programa...')
 else:
-    print('Opção inválida')
+    print('Opção inválida.')
+
+
+
